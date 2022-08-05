@@ -1,56 +1,61 @@
 import { hasValidGift, parseContentId } from "./gift";
 
-export interface Env {
-  // Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-  // MY_KV_NAMESPACE: KVNamespace;
-  //
-  // Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-  // MY_DURABLE_OBJECT: DurableObjectNamespace;
-  //
-  // Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
-  // MY_BUCKET: R2Bucket;
-}
+const HOST = "";
 
-const responseOptions = {
-  headers: {
-    'content-type': 'text/html'
+class GiftHandler {
+  config
+
+  constructor(config: any) {
+    this.config = config;
+  }
+
+  async element(element: Element) {
+    element.prepend(
+      `<meta name="gift-meta" content='${JSON.stringify(this.config)}' >`,
+      { html: true }
+    )
   }
 }
 
-const makeHtml = (title: string, content: string) => {
-  return `<html>
-  <head>
-  <title>${title}</title>
-    <body>
-      ${content}
-    </body>
-    </html>
-  `;
+async function getPage(url: URL) {
+  let innerUrl = `${HOST}${url.pathname}/?${url.searchParams.toString()}`;
+  return await fetch(innerUrl);
 }
 
 export default {
   async fetch(
     request: Request,
-    env: Env,
+    env: any,
     ctx: ExecutionContext
   ): Promise<Response> {
     let url = new URL(request.url);
-    let contentId = parseContentId(url);
     let hasGift = await hasValidGift(url);
+    let page; 
 
-    if (hasGift) {
-      return new Response(makeHtml('Your gift', `
-          <h1>Article ${contentId}</h1>
-          <p>You've been gifted this article</p>
-      `), responseOptions);
+    try {
+      page = await getPage(url);
+    } catch (e) {
+      console.log("failed", e)
+    }
+
+    if (hasGift && page) {
+      let contentId = parseContentId(url);
+
+      let giftConfig = {
+        type: 'gift',
+        status: 'gift',
+        contentId: contentId,
+      };
+
+      // Rewrite page HTML to include special gift meta tag 
+      let output = new HTMLRewriter().on('head', new GiftHandler(giftConfig)).transform(page);
+      return output;
     } else {
-      return new Response(makeHtml('Paywall', `
-        <html>
-        <body>
-          <h1>Subscribe to read this article</h1>
-        </body>
-        </html>
-      `), responseOptions);
+      if (page) {
+        return page;
+      } else {
+        return new Response("404");
+      }
     }
   },
 };

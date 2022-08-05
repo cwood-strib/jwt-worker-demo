@@ -9,10 +9,12 @@
   },
   "private": true,
   "scripts": {
-    "start": "wrangler dev",
+    "start": "wrangler dev --local",
+    "bench": "node ./bench/query-param.bench.js",
     "deploy": "wrangler publish"
   },
   "dependencies": {
-    "@cfworker/jwt": "^4.0.2"
+    "@cfworker/jwt": "^4.0.2",
+    "benchmark": "^2.1.4"
   }
 }

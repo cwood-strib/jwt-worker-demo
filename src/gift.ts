@@ -4,15 +4,16 @@ const GIFT_TOKEN_PARAM = "gift";
 const JWT_KEY = 'secret';
 
 export function parseContentId(url: URL): number|null {
-  let id = url.searchParams.get("id");
-  if (id) {
-    return Number(id);
+  let re = new RegExp(/\/(\d)+\//, 'g');
+  let results = url.toString().match(re);
+  if (results && results.length) {
+    let first = results[0];
+    let id = Number(first.replaceAll("/", ""))
+    return id;
   }
-
   return null;
 }
 
-// TODO: Benchmark alternatives
 export async function hasValidGift(url: URL): Promise<boolean> {
   try {
       if (url.searchParams.has(GIFT_TOKEN_PARAM)) {
@@ -31,8 +32,8 @@ export async function hasValidGift(url: URL): Promise<boolean> {
         }
       }
   } catch (e) {
-    console.error("failed to parse", e, url)
-    // Failed to create a valid url from the string	
+    console.error("failed while checking for gift", e, url)
+    // Failed to create a valid url from the string or token verification failed	
   }
   return false;
 }
